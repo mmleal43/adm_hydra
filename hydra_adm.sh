@@ -1,5 +1,5 @@
 #!/bin/bash
-# ADM-HYDRA - Script Principal
+# ADM-HYDRA - Script Principal (Corregido)
 # GitHub: https://github.com/mmleal43/adm_hydra
 
 # Configuración
@@ -17,14 +17,7 @@ MAGENTA='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Inicialización
-init() {
-    [ ! -f "$CONFIG_FILE" ] && touch "$CONFIG_FILE"
-    chmod 600 "$CONFIG_FILE"
-    log "Inicio de sesión - Versión $VERSION"
-}
-
-# Sistema de logging
+# Función de logging
 log() {
     echo "[$(date '+%d/%m/%Y %H:%M:%S')] $1" >> "$LOG_FILE"
 }
@@ -41,7 +34,48 @@ show_banner() {
     echo "  |_|  |_|\__,_|\__,_| (_)"
     echo -e "${NC}"
     echo -e "${YELLOW}ADM-HYDRA - Panel de Control v$VERSION${NC}"
-    echo -e "===================================="
+    echo "===================================="
+}
+
+# Menú de gestión SSH
+manage_ssh() {
+    while true; do
+        show_banner
+        echo -e "${GREEN}1. Agregar usuario SSH${NC}"
+        echo -e "${GREEN}2. Eliminar usuario SSH${NC}"
+        echo -e "${GREEN}3. Listar usuarios SSH${NC}"
+        echo -e "${RED}4. Volver al menú principal${NC}"
+        echo "===================================="
+        
+        read -r -p "Seleccione una opción [1-4]: " option
+        
+        case $option in
+            1) add_ssh_user ;;
+            2) del_ssh_user ;;
+            3) list_ssh_users ;;
+            4) break ;;
+            *) 
+                echo -e "${RED}Opción inválida!${NC}"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# Función para agregar usuario SSH
+add_ssh_user() {
+    read -r -p "Nombre de usuario: " username
+    read -r -p "Contraseña: " password
+    read -r -p "Días de vigencia: " days
+    
+    expiry_date=$(date -d "$days days" +"%Y-%m-%d")
+    useradd -m -s /bin/false "$username"
+    echo "$username:$password" | chpasswd
+    
+    echo "$username:$expiry_date" >> "$CONFIG_FILE"
+    log "Usuario SSH agregado: $username (Expira: $expiry_date)"
+    echo -e "${GREEN}Usuario $username creado exitosamente!${NC}"
+    sleep 2
 }
 
 # Menú principal
@@ -51,19 +85,17 @@ main_menu() {
         echo -e "${GREEN}1. Gestión de Usuarios SSH${NC}"
         echo -e "${GREEN}2. Instalar Protocolos${NC}"
         echo -e "${GREEN}3. Administrar Servicios${NC}"
-        echo -e "${GREEN}4. Configuración del Sistema${NC}"
-        echo -e "${GREEN}5. Ver Registros${NC}"
+        echo -e "${GREEN}4. Ver Registros${NC}"
         echo -e "${RED}0. Salir${NC}"
-        echo -e "===================================="
+        echo "===================================="
         
-        read -p "Seleccione una opción [0-5]: " option
+        read -r -p "Seleccione una opción [0-4]: " option
         
         case $option in
             1) manage_ssh ;;
             2) install_protocols ;;
             3) manage_services ;;
-            4) system_config ;;
-            5) view_logs ;;
+            4) view_logs ;;
             0) 
                 log "Sesión finalizada"
                 echo -e "${GREEN}Hasta pronto!${NC}"
@@ -77,28 +109,30 @@ main_menu() {
     done
 }
 
-# Funciones principales
-manage_ssh() {
-    echo -e "${YELLOW}[En desarrollo] Gestión de Usuarios SSH${NC}"
-    sleep 2
-}
+# Inicialización
+if [ ! -f "$CONFIG_FILE" ]; then
+    touch "$CONFIG_FILE"
+    chmod 600 "$CONFIG_FILE"
+fi
 
-install_protocols() {
-    echo -e "${YELLOW}[En desarrollo] Instalación de Protocolos${NC}"
-    sleep 2
-}
+if [ ! -f "$LOG_FILE" ]; then
+    touch "$LOG_FILE"
+    chmod 600 "$LOG_FILE"
+fi
+
+log "Inicio de sesión - Versión $VERSION"
 
 # Manejo de parámetros
 case $1 in
     "--update")
         log "Iniciando actualización automática"
-        cd "$INSTALL_DIR" && git pull
+        cd "$INSTALL_DIR" || exit 1
+        git pull
         ;;
     "--install")
         log "Instalación adicional requerida"
         ;;
     *)
-        init
         main_menu
         ;;
 esac
