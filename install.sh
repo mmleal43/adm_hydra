@@ -1,37 +1,55 @@
 #!/bin/bash
-# Instalador Automático HYDRA ADM
-# Uso: wget -qO- https://raw.githubusercontent.com/mmleal43/HYDRA-ADM/main/install.sh | sudo bash
+echo -e "\e[31m🐉 Instalando HYDRA PANEL v3...\e[0m"
+sleep 2
 
-# Configuración
-SCRIPT_URL="https://raw.githubusercontent.com/mmleal43/HYDRA-ADM/main/HYDRAADM.sh"
-INSTALL_PATH="/usr/local/bin/hydraadm"
-
-# Verificar root
-[ "$(id -u)" -ne 0 ] && {
-    echo -e "\033[0;31m[!] Debes ejecutar como root. Usa: sudo bash $0\033[0m"
-    exit 1
-}
+# Actualizar sistema
+apt update -y && apt upgrade -y
 
 # Instalar dependencias
-echo -e "\033[1;33m[+] Instalando dependencias...\033[0m"
-apt-get update && apt-get install -y wget curl
+apt install -y wget curl net-tools unzip jq screen nginx stunnel4 fail2ban openssl
 
-# Descargar e instalar script
-echo -e "\033[1;33m[+] Instalando HYDRA ADM...\033[0m"
-wget -q "$SCRIPT_URL" -O "$INSTALL_PATH" || {
-    echo -e "\033[0;31m[!] Error al descargar el script\033[0m"
-    exit 1
+# Configurar SSH + Stunnel
+echo "Port 22" >> /etc/ssh/sshd_config
+systemctl restart ssh
+
+cat > /etc/stunnel/stunnel.conf <<EOF
+client = no
+[ssh]
+accept = 443
+connect = 22
+EOF
+echo "ENABLED=1" > /etc/default/stunnel4
+systemctl restart stunnel4
+
+# Configurar Fail2Ban
+systemctl enable fail2ban
+systemctl start fail2ban
+
+# Nginx default
+rm -f /etc/nginx/sites-enabled/default
+cat > /etc/nginx/sites-available/hydra <<EOF
+server {
+    listen 80;
+    server_name _;
+    root /var/www/html;
+    index index.html;
 }
+EOF
+ln -s /etc/nginx/sites-available/hydra /etc/nginx/sites-enabled/
+systemctl restart nginx
 
-chmod +x "$INSTALL_PATH"
+# TLS autofirmado
+mkdir -p /etc/ssl
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout /etc/ssl/hydra-key.pem -out /etc/ssl/hydra-cert.pem -subj "/CN=HYDRA"
 
-# Crear enlace simbólico
-ln -sf "$INSTALL_PATH" /usr/bin/hydraadm
+# HYDRA ADM script
+mkdir -p /etc/hydra_adm
+wget -O /etc/hydra_adm/hydra_adm.sh https://raw.githubusercontent.com/mmleal43/adm_hydra/main/hydra_adm.sh
+chmod +x /etc/hydra_adm/hydra_adm.sh
 
-# Crear directorios base
-mkdir -p /opt/hydra_adm /var/log/hydra /etc/hydra
+# Alias global
+echo -e "#!/bin/bash\nbash /etc/hydra_adm/hydra_adm.sh" > /usr/bin/menu
+chmod +x /usr/bin/menu
 
-echo -e "\033[1;32m[+] Instalación completada!\033[0m"
-echo -e "Ejecuta el panel con: \033[1;32mhydraadm\033[0m"
-
-exit 0
+echo -e "\e[32m✅ Instalación completa."
+echo -e "\e[31m🐉 Escribe \e[33mmenu\e[0m \e[31mpara abrir tu HYDRA PANEL.\e[0m"
