@@ -1,55 +1,80 @@
 #!/bin/bash
-echo -e "\e[31m🐉 Instalando HYDRA PANEL v3...\e[0m"
-sleep 2
+# Installer Oficial para ADM-HYDRA
+# GitHub: https://github.com/mmleal43/adm_hydra
 
-# Actualizar sistema
-apt update -y && apt upgrade -y
+# Colores
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Verificar root
+if [ "$(id -u)" != "0" ]; then
+    echo -e "${RED}Error: Debes ejecutar como root!${NC}" 1>&2
+    exit 1
+fi
+
+# Configuración
+INSTALL_DIR="/usr/local/hydra"
+BIN_PATH="/usr/local/bin/hydra"
+REPO_URL="https://github.com/mmleal43/adm_hydra.git"
+
+echo -e "${BLUE}"
+echo "   _    _           _   _ "
+echo "  | |  | |         | | | |"
+echo "  | |__| |_   _  __| | | |"
+echo "  |  __  | | | |/ _\` | | |"
+echo "  | |  | | |_| | (_| | |_|"
+echo "  |_|  |_|\__,_|\__,_| (_)"
+echo -e "${NC}"
+echo -e "${YELLOW}Instalador Oficial ADM-HYDRA${NC}"
+echo -e "===================================="
 
 # Instalar dependencias
-apt install -y wget curl net-tools unzip jq screen nginx stunnel4 fail2ban openssl
+echo -e "${YELLOW}[+] Instalando dependencias...${NC}"
+apt-get update > /dev/null 2>&1
+apt-get install -y \
+    git curl jq python3-pip \
+    openssh-server dropbear \
+    stunnel4 squid shadowsocks-libev > /dev/null 2>&1
 
-# Configurar SSH + Stunnel
-echo "Port 22" >> /etc/ssh/sshd_config
-systemctl restart ssh
+# Clonar repositorio
+echo -e "${YELLOW}[+] Clonando repositorio...${NC}"
+if [ -d "$INSTALL_DIR" ]; then
+    echo -e "${BLUE}[!] Actualizando instalación existente...${NC}"
+    cd "$INSTALL_DIR" && git pull > /dev/null 2>&1
+else
+    git clone "$REPO_URL" "$INSTALL_DIR" > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}[!] Error al clonar el repositorio!${NC}"
+        exit 1
+    fi
+fi
 
-cat > /etc/stunnel/stunnel.conf <<EOF
-client = no
-[ssh]
-accept = 443
-connect = 22
-EOF
-echo "ENABLED=1" > /etc/default/stunnel4
-systemctl restart stunnel4
+# Permisos de ejecución
+chmod +x "$INSTALL_DIR/hydra_adm.sh"
 
-# Configurar Fail2Ban
-systemctl enable fail2ban
-systemctl start fail2ban
+# Crear enlace simbólico
+ln -sf "$INSTALL_DIR/hydra_adm.sh" "$BIN_PATH"
 
-# Nginx default
-rm -f /etc/nginx/sites-enabled/default
-cat > /etc/nginx/sites-available/hydra <<EOF
-server {
-    listen 80;
-    server_name _;
-    root /var/www/html;
-    index index.html;
-}
-EOF
-ln -s /etc/nginx/sites-available/hydra /etc/nginx/sites-enabled/
-systemctl restart nginx
+# Configurar servicios
+echo -e "${YELLOW}[+] Configurando servicios...${NC}"
+cp "$INSTALL_DIR/configs/banner_ssh" "/etc/banner" 2>/dev/null
+systemctl enable dropbear > /dev/null 2>&1
 
-# TLS autofirmado
-mkdir -p /etc/ssl
-openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout /etc/ssl/hydra-key.pem -out /etc/ssl/hydra-cert.pem -subj "/CN=HYDRA"
+# Configurar auto-actualización
+(crontab -l 2>/dev/null; echo "0 3 * * * $BIN_PATH --update") | crontab -
 
-# HYDRA ADM script
-mkdir -p /etc/hydra_adm
-wget -O /etc/hydra_adm/hydra_adm.sh https://raw.githubusercontent.com/mmleal43/adm_hydra/main/hydra_adm.sh
-chmod +x /etc/hydra_adm/hydra_adm.sh
-
-# Alias global
-echo -e "#!/bin/bash\nbash /etc/hydra_adm/hydra_adm.sh" > /usr/bin/menu
-chmod +x /usr/bin/menu
-
-echo -e "\e[32m✅ Instalación completa."
-echo -e "\e[31m🐉 Escribe \e[33mmenu\e[0m \e[31mpara abrir tu HYDRA PANEL.\e[0m"
+echo -e "${GREEN}"
+echo "  _   _                 _ "
+echo " | | | |               | |"
+echo " | |_| |_ _ __ __ _  __| |"
+echo " |  _  | '__/ _\` |/ _\` |"
+echo " | | | | | | (_| | (_| |"
+echo " \_| |_/_|  \__,_|\__,_|"
+echo -e "${NC}"
+echo -e "${GREEN}[+] Instalación completada con éxito!${NC}"
+echo -e "===================================="
+echo -e "Usa el comando: ${YELLOW}hydra${NC} para iniciar la herramienta"
+echo -e "Documentación: ${BLUE}https://github.com/mmleal43/adm_hydra${NC}"
