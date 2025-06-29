@@ -1,5 +1,5 @@
 #!/bin/bash
-# Installer Oficial para ADM-HYDRA
+# Installer Oficial ADM-HYDRA (Corregido)
 # GitHub: https://github.com/mmleal43/adm_hydra
 
 # Colores
@@ -20,6 +20,8 @@ INSTALL_DIR="/usr/local/hydra"
 BIN_PATH="/usr/local/bin/hydra"
 REPO_URL="https://github.com/mmleal43/adm_hydra.git"
 
+# Mostrar banner
+clear
 echo -e "${BLUE}"
 echo "   _    _           _   _ "
 echo "  | |  | |         | | | |"
@@ -29,21 +31,19 @@ echo "  | |  | | |_| | (_| | |_|"
 echo "  |_|  |_|\__,_|\__,_| (_)"
 echo -e "${NC}"
 echo -e "${YELLOW}Instalador Oficial ADM-HYDRA${NC}"
-echo -e "===================================="
+echo "===================================="
 
 # Instalar dependencias
 echo -e "${YELLOW}[+] Instalando dependencias...${NC}"
 apt-get update > /dev/null 2>&1
-apt-get install -y \
-    git curl jq python3-pip \
-    openssh-server dropbear \
-    stunnel4 squid shadowsocks-libev > /dev/null 2>&1
+apt-get install -y git curl jq python3-pip openssh-server dropbear stunnel4 squid shadowsocks-libev > /dev/null 2>&1
 
 # Clonar repositorio
 echo -e "${YELLOW}[+] Clonando repositorio...${NC}"
 if [ -d "$INSTALL_DIR" ]; then
     echo -e "${BLUE}[!] Actualizando instalación existente...${NC}"
-    cd "$INSTALL_DIR" && git pull > /dev/null 2>&1
+    cd "$INSTALL_DIR" || exit 1
+    git pull > /dev/null 2>&1
 else
     git clone "$REPO_URL" "$INSTALL_DIR" > /dev/null 2>&1
     if [ $? -ne 0 ]; then
@@ -58,11 +58,6 @@ chmod +x "$INSTALL_DIR/hydra_adm.sh"
 # Crear enlace simbólico
 ln -sf "$INSTALL_DIR/hydra_adm.sh" "$BIN_PATH"
 
-# Configurar servicios
-echo -e "${YELLOW}[+] Configurando servicios...${NC}"
-cp "$INSTALL_DIR/configs/banner_ssh" "/etc/banner" 2>/dev/null
-systemctl enable dropbear > /dev/null 2>&1
-
 # Configurar auto-actualización
 (crontab -l 2>/dev/null; echo "0 3 * * * $BIN_PATH --update") | crontab -
 
@@ -75,6 +70,6 @@ echo " | | | | | | (_| | (_| |"
 echo " \_| |_/_|  \__,_|\__,_|"
 echo -e "${NC}"
 echo -e "${GREEN}[+] Instalación completada con éxito!${NC}"
-echo -e "===================================="
+echo "===================================="
 echo -e "Usa el comando: ${YELLOW}hydra${NC} para iniciar la herramienta"
 echo -e "Documentación: ${BLUE}https://github.com/mmleal43/adm_hydra${NC}"
