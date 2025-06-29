@@ -1,115 +1,141 @@
 #!/bin/bash
-# HYDRA ADM PANEL - VERSIÓN COMPLETA Y FUNCIONAL
+# ==========================================
+# HYDRA PANEL v3
+# ==========================================
 
-# Configuración
-HYDRA_USER="admin"
-HYDRA_PASS=$(openssl rand -hex 8)
-INSTALL_DIR="/usr/local/hydra"
-LOG_FILE="/var/log/hydra.log"
+# Auto-expirador SSH
+for user in $(cut -d: -f1 /etc/passwd | grep -vE "root|nologin|sync|shutdown|halt|mail"); do
+  exp=$(chage -l $user | grep "Account expires" | awk -F": " '{print $2}')
+  if [[ $exp != "never" && $(date -d "$exp" +%s) -lt $(date +%s) ]]; then
+    userdel -r $user &>/dev/null
+    echo -e "\e[31m🗑 Usuario $user eliminado por expiración ($exp)\e[0m"
+  fi
+done
 
-# Colores
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-# Crear archivo de log si no existe
-touch $LOG_FILE
-
-# Función para el menú principal
-show_menu() {
-    clear
-    echo -e "${BLUE}"
-    echo -e " ██╗  ██╗██╗   ██╗██████╗ ██████╗  █████╗ "
-    echo -e " ██║  ██║╚██╗ ██╔╝██╔══██╗██╔══██╗██╔══██╗"
-    echo -e " ███████║ ╚████╔╝ ██████╔╝██████╔╝███████║"
-    echo -e " ██╔══██║  ╚██╔╝  ██╔══██╗██╔══██╗██╔══██║"
-    echo -e " ██║  ██║   ██║   ██║  ██║██║  ██║██║  ██║"
-    echo -e " ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝"
-    echo -e "${NC}${YELLOW}        PANEL DE ADMINISTRACIÓN HYDRA ADM${NC}"
-    echo -e "${BLUE}============================================${NC}"
-    echo -e " ${GREEN}1.${NC} Instalar componentes principales"
-    echo -e " ${GREEN}2.${NC} Gestión de usuarios"
-    echo -e " ${GREEN}3.${NC} Configurar protocolos"
-    echo -e " ${GREEN}4.${NC} Monitor de red"
-    echo -e " ${GREEN}5.${NC} Ver logs del sistema"
-    echo -e " ${GREEN}6.${NC} Configuración avanzada"
-    echo -e " ${GREEN}0.${NC} Salir"
-    echo -e "${BLUE}============================================${NC}"
-}
-
-# Función para instalar componentes principales
-install_components() {
-    echo -e "\n${GREEN}[+] Instalando componentes...${NC}" | tee -a $LOG_FILE
-    # Aquí va la lógica de instalación
-    # Ejemplo: apt-get install -y <paquete>
-    sleep 2
-    echo -e "${GREEN}[+] Instalación completada.${NC}" | tee -a $LOG_FILE
-}
-
-# Función para gestionar usuarios
-manage_users() {
-    echo -e "\n${GREEN}[+] Gestión de usuarios seleccionada${NC}" | tee -a $LOG_FILE
-    # Aquí va la lógica para gestionar usuarios
-    # Ejemplo: agregar, eliminar, listar usuarios
-    sleep 2
-}
-
-# Función para configurar protocolos
-configure_protocols() {
-    echo -e "\n${GREEN}[+] Configuración de protocolos${NC}" | tee -a $LOG_FILE
-    # Aquí va la lógica para configurar protocolos
-    # Ejemplo: configurar V2Ray, OpenVPN, etc.
-    sleep 2
-}
-
-# Función para monitor de red
-monitor_network() {
-    echo -e "\n${GREEN}[+] Monitor de red activado${NC}" | tee -a $LOG_FILE
-    # Aquí va la lógica para monitorear la red
-    # Ejemplo: mostrar estadísticas de tráfico
-    ifconfig | head -10
-    read -p "Presione Enter para continuar..."
-}
-
-# Función para ver logs del sistema
-view_logs() {
-    echo -e "\n${BLUE}=== ÚLTIMOS EVENTOS (logs) ===${NC}" | tee -a $LOG_FILE
-    tail -20 $LOG_FILE || echo -e "${RED}No se pudo leer el archivo de logs${NC}" | tee -a $LOG_FILE
-    read -p "Presione Enter para continuar..."
-}
-
-# Función para configuración avanzada
-advanced_configuration() {
-    echo -e "\n${GREEN}[+] Configuración avanzada${NC}" | tee -a $LOG_FILE
-    # Aquí va la lógica para configuración avanzada
-    # Ejemplo: ajustar parámetros de rendimiento
-    sleep 2
-}
-
-# Bucle principal del menú
 while true; do
-    show_menu
-    echo -ne "\n${YELLOW}Seleccione una opción: ${NC}"
-    read -r choice
+  clear
+  echo -e "\e[31m============================"
+  echo -e "     🐉 HYDRA PANEL v3"
+  echo -e "============================\e[0m"
+  echo -e "\e[33m[1]\e[0m Crear usuario SSH"
+  echo -e "\e[33m[2]\e[0m Listar usuarios SSH"
+  echo -e "\e[33m[3]\e[0m Reiniciar servicios"
+  echo -e "\e[33m[4]\e[0m Ver logs conexiones"
+  echo -e "\e[33m[5]\e[0m Instalar V2Ray multi-path WS"
+  echo -e "\e[33m[6]\e[0m Instalar Trojan-GO TLS"
+  echo -e "\e[0m"
+  echo -e "\e[33m[0]\e[0m Salir"
+  echo -ne "\n\e[31mSelecciona una opción: \e[0m"
+  read opt
+  case $opt in
+    1)
+      echo -ne "\n\e[33mUsuario SSH: \e[0m"; read user
+      echo -ne "\e[33mDías válido: \e[0m"; read days
+      exp_date=$(date -d "$days days" +"%Y-%m-%d")
+      pass=$(openssl rand -hex 4)
+      useradd -e $exp_date -M -s /bin/false $user
+      echo "$user:$pass" | chpasswd
+      echo "$user maxlogins=1" >> /etc/security/limits.conf
+      echo -e "\e[32m✅ $user creado, pass: $pass, expira: $exp_date\e[0m"
+      read -p "Enter para continuar..."
+      ;;
+    2)
+      echo -e "\n\e[33mUsuarios SSH activos:\e[0m"
+      cut -d: -f1 /etc/passwd | grep -vE "root|nologin|sync|shutdown|halt|mail" | while read u; do
+        chage -l $u | grep "Account expires" | awk '{print "\e[32m" u "\e[0m expira: "$4" "$5" "$6}' u=$u
+      done
+      read -p "Enter para continuar..."
+      ;;
+    3)
+      echo -e "\n\e[33mReiniciando SSH, Stunnel, Nginx, V2Ray, Trojan-GO...\e[0m"
+      systemctl restart ssh
+      systemctl restart stunnel4
+      systemctl restart nginx
+      systemctl restart v2ray &>/dev/null
+      systemctl restart trojan-go &>/dev/null
+      echo -e "\e[32m✅ Servicios reiniciados.\e[0m"
+      read -p "Enter para continuar..."
+      ;;
+    4)
+      echo -e "\n\e[33mLogs de conexiones:\e[0m"
+      last
+      read -p "Enter para continuar..."
+      ;;
+    5)
+      echo -e "\n\e[33mInstalando V2Ray multi-path...\e[0m"
+      bash <(curl -L -s https://install.direct/go.sh)
+      uuid=$(cat /proc/sys/kernel/random/uuid)
+      mkdir -p /etc/v2ray
+      cat > /etc/v2ray/config.json <<EOF
+{
+  "inbounds": [{
+    "port": 443,
+    "protocol": "vless",
+    "settings": { "clients": [{ "id": "$uuid" }] },
+    "streamSettings": {
+      "network": "ws",
+      "wsSettings": { "path": "/hydra" },
+      "security": "tls",
+      "tlsSettings": { "certificates": [{ "certificateFile": "/etc/ssl/hydra-cert.pem", "keyFile": "/etc/ssl/hydra-key.pem" }] }
+    }
+  }],
+  "outbounds": [{ "protocol": "freedom" }]
+}
+EOF
+      systemctl enable v2ray
+      systemctl restart v2ray
+      echo -e "\n\e[32m✅ V2Ray multi-path instalado."
+      echo -e "\e[33mVLESS:\e[0m"
+      echo -e "\e[32mvless://$uuid@$(curl -s ifconfig.me):443?type=ws&security=tls&path=/hydra#HYDRA\e[0m"
+      read -p "Enter para continuar..."
+      ;;
+    6)
+      echo -e "\n\e[33mInstalando Trojan-GO...\e[0m"
+      mkdir -p /etc/trojan-go
+      wget -O /etc/trojan-go/trojan-go https://github.com/p4gefau1t/trojan-go/releases/latest/download/trojan-go-linux-amd64
+      chmod +x /etc/trojan-go/trojan-go
+      uuid=$(cat /proc/sys/kernel/random/uuid)
+      cat > /etc/trojan-go/config.json <<EOF
+{
+  "run_type": "server",
+  "local_addr": "0.0.0.0",
+  "local_port": 443,
+  "remote_addr": "127.0.0.1",
+  "remote_port": 80,
+  "password": ["$uuid"],
+  "ssl": {
+    "cert": "/etc/ssl/hydra-cert.pem",
+    "key": "/etc/ssl/hydra-key.pem"
+  }
+}
+EOF
+      cat > /etc/systemd/system/trojan-go.service <<EOF
+[Unit]
+Description=Trojan-GO Server
+After=network.target
+[Service]
+Type=simple
+ExecStart=/etc/trojan-go/trojan-go -config /etc/trojan-go/config.json
+Restart=on-failure
 
-    # Procesar opción
-    case $choice in
-        1) install_components ;;
-        2) manage_users ;;
-        3) configure_protocols ;;
-        4) monitor_network ;;
-        5) view_logs ;;
-        6) advanced_configuration ;;
-        0) 
-            echo -e "\n${GREEN}[+] Saliendo del panel HYDRA ADM${NC}" | tee -a $LOG_FILE
-            exit 0
-            ;;
-        *)
-            echo -e "\n${RED}[!] Opción $choice no válida!${NC}" | tee -a $LOG_FILE
-            echo -e "Por favor ingrese un número entre ${YELLOW}0 y 6${NC}" | tee -a $LOG_FILE
-            sleep 2
-            ;;
-    esac
+[Install]
+WantedBy=multi-user.target
+EOF
+      systemctl daemon-reload
+      systemctl enable trojan-go
+      systemctl restart trojan-go
+      echo -e "\n\e[32m✅ Trojan-GO instalado."
+      echo -e "\e[33mTrojan link:\e[0m"
+      echo -e "\e[32mtrojan://$uuid@$(curl -s ifconfig.me):443?security=tls&peer=example.com#HYDRA-TROJAN\e[0m"
+      read -p "Enter para continuar..."
+      ;;
+    0)
+      echo -e "\e[31mSaliendo del HYDRA PANEL 🐉\e[0m"
+      exit 0
+      ;;
+    *)
+      echo -e "\e[31mOpción inválida\e[0m"
+      sleep 1
+      ;;
+  esac
 done
